@@ -11,9 +11,12 @@
 # from manimlib.creature.pencil_creature import *
 
 from manim.utils.rate_functions import squish_rate_func, there_and_back, exponential_decay
-from manim.animation.transform import ApplyMethod
-from manim.animation.fading import FadeInFrom, FadeOutAndShift
+from manim.animation.transform import ApplyMethod, MoveToTarget
+from manim.animation.fading import FadeInFrom, FadeOutAndShift, FadeOut
+from manim.animation.composition import AnimationGroup
+from manim.animation.creation import Create, Uncreate, Write
 from manim.constants import *
+from manim.mobject.mobject import Group
 
 from .pencil import PencilCreature
 
@@ -55,98 +58,101 @@ class DisAppears(FadeOutAndShift):
             **kwargs,
         )
 
-# class BubbleIntroduction(AnimationGroup):
-#     CONFIG = {
-#         "target_mode": "ask",
-#         "bubble_class": SpeechBubble,
-#         "change_mode_kwargs": {},
-#         "bubble_creation_class": Write,
-#         "bubble_creation_kwargs": {},
-#         "bubble_kwargs": {},
-#         "content_introduction_class": Write,
-#         "content_introduction_kwargs": {},
-#         "look_at_arg": None,
-#     }
 
-#     def __init__(self, creature, *content, **kwargs):
-#         digest_config(self, kwargs)
-#         bubble = creature.get_bubble(
-#             *content,
-#             bubble_class=self.bubble_class,
-#             **self.bubble_kwargs
-#         )
-#         Group(bubble, bubble.content).shift_onto_screen()
+class BubbleIntroduction(AnimationGroup):
+    
+    def __init__(
+        self, 
+        creature, 
+        content, 
+        target_mode="ask",
+        bubble_mode="speech",
+        look_at_arg = None, 
+        bubble_creation_class = Write,
+        content_introduction_class= Write,
+        **kwargs,
+    ):
 
-#         creature.generate_target()
-#         creature.target.change_mode(self.target_mode)
-#         if self.look_at_arg is not None:
-#             creature.target.look_at(self.look_at_arg)
+        bubble = creature.get_bubble(content, bubble_mode=bubble_mode)
+        Group(bubble, bubble.content).shift_onto_screen()
 
-#         change_mode = MoveToTarget(creature, **self.change_mode_kwargs)
-#         bubble_creation = self.bubble_creation_class(bubble, **self.bubble_creation_kwargs)
-#         content_introduction = self.content_introduction_class(bubble.content, **self.content_introduction_kwargs)
-#         AnimationGroup.__init__(
-#             self, change_mode, bubble_creation, content_introduction,
-#             **kwargs
-#         )
+        creature.generate_target()
+        creature.target.change_mode(target_mode)
+        if look_at_arg:
+            creature.target.look_at(look_at_arg)
+
+        change_mode = MoveToTarget(creature)
+        bubble_creation = bubble_creation_class(bubble)
+        content_introduction = content_introduction_class(bubble.content)
+        AnimationGroup.__init__(
+            self, change_mode, bubble_creation, content_introduction,
+            **kwargs
+        )
 
 
-# class Says(BubbleIntroduction):
-#     CONFIG = {
-#         "target_mode": "ask",
-#         "bubble_class": SpeechBubble,
-#     }
+class Says(BubbleIntroduction):
+    def __init__(self, creature, content, **kwargs):
+        super().__init__(
+            creature, 
+            content, 
+            target_mode="confident", 
+            bubble_mode="speech",
+            **kwargs
+        )
 
 
-# class RemoveBubble(BubbleIntroduction):
-#     CONFIG = {
-#         "target_mode": "normal",
-#         "look_at_arg": None,
-#         "remover": True,
-#         "run_time": 0.2
-#     }
-
-#     def __init__(self, creature, **kwargs):
-#         assert hasattr(creature, "bubble")
-#         digest_config(self, kwargs, locals())
-
-#         # creature.generate_target()
-#         # creature.target.change_mode(self.target_mode)
-#         if self.look_at_arg is not None:
-#             creature.target.look_at(self.look_at_arg)
-
-#         AnimationGroup.__init__(
-#             self,
-#             # MoveToTarget(creature),
-#             FadeOut(creature.bubble),
-#             FadeOut(creature.bubble.content),
-#             run_time = self.run_time
-#         )
-
-#     def clean_up_from_scene(self, scene=None):
-#         AnimationGroup.clean_up_from_scene(self, scene)
-#         self.creature.bubble = None
-#         if scene is not None:
-#             scene.add(self.creature)
+class Asks(BubbleIntroduction):
+    def __init__(self, creature, content, **kwargs):
+        super().__init__(
+            creature, 
+            content, 
+            target_mode="think", 
+            bubble_mode="speech",
+            **kwargs
+        )
 
 
-# class FlashThroughClass(Animation):
-#     CONFIG = {
-#         "highlight_color": GREEN,
-#     }
+class Thinks(BubbleIntroduction):
+    def __init__(self, creature, content, **kwargs):
+        super().__init__(
+            creature, 
+            content, 
+            target_mode="think", 
+            bubble_mode="thought",
+            **kwargs
+        )
 
-#     def __init__(self, mobject, mode="linear", **kwargs):
-#         if not isinstance(mobject, PencilCreature):
-#             raise Exception("FlashThroughClass mobject must be a PencilCreatureClass")
-#         digest_config(self, kwargs)
-#         self.indices = list(range(mobject.height * mobject.width))
-#         if mode == "random":
-#             np.random.shuffle(self.indices)
-#         Animation.__init__(self, mobject, **kwargs)
 
-#     def interpolate_mobject(self, alpha):
-#         index = int(np.floor(alpha * self.mobject.height * self.mobject.width))
-#         for pi in self.mobject:
-#             pi.set_color(BLUE_E)
-#         if index < self.mobject.height * self.mobject.width:
-#             self.mobject[self.indices[index]].set_color(self.highlight_color)
+class RemoveBubble(BubbleIntroduction):
+    CONFIG = {
+        "target_mode": "normal",
+        "look_at_arg": None,
+        "remover": True,
+        "run_time": 0.2
+    }
+
+    def __init__(
+        self, 
+        creature, 
+        look_at_arg = None,
+        run_time= 0.5,
+        **kwargs
+    ):
+        assert hasattr(creature, "bubble")
+
+        if look_at_arg:
+            creature.target.look_at(look_at_arg)
+
+        AnimationGroup.__init__(
+            self,
+            Uncreate(creature.bubble),
+            FadeOut(creature.bubble.content),
+            run_time = run_time
+        )
+
+    # def clean_up_from_scene(self, scene=None):
+    #     AnimationGroup.clean_up_from_scene(self, scene)
+    #     self.creature.bubble = None
+    #     if scene:
+    #         scene.add(self.creature)
+

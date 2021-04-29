@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 __all__ = [
     "PencilCreature", 
@@ -12,6 +11,9 @@ from manim.mobject.svg.svg_mobject import SVGMobject
 from manim.mobject.types.vectorized_mobject import VGroup
 from manim.mobject.mobject import *
 from manim.mobject.geometry import *
+# from manim.mobject.svg.tex_mobject import TextMobject
+
+from .bubble import Bubble
 
 from pathlib import Path 
 import os
@@ -267,21 +269,17 @@ class PencilCreature(SVGMobject):
             self.to_corner(DOWN + LEFT, **kwargs)
         return self
 
-    # TODO : Take the time to look at it
-    # def get_bubble(self, *content, **kwargs):
-    #     bubble_class = kwargs.get("bubble_class", ThoughtBubble)
-    #     bubble = bubble_class(**kwargs)
-    #     if len(content) > 0:
-    #         if isinstance(content[0], str):
-    #             content_mob = TextMobject(*content)
-    #         else:
-    #             content_mob = content[0]
-    #         bubble.add_content(content_mob)
-    #         if "height" not in kwargs and "width" not in kwargs:
-    #             bubble.resize_to_content()
-    #     bubble.pin_to(self)
-    #     self.bubble = bubble
-    #     return bubble
+    def get_bubble(self, content, **kwargs):
+        bubble = Bubble(**kwargs)
+        if content:
+            if isinstance(content, str):
+                bubble.write(content)
+            else:
+                bubble.add_content(content)
+            bubble.resize_to_content()
+        bubble.pin_to(self)
+        self.bubble = bubble
+        return bubble
 
     def make_eye_contact(self, creature):
         self.look_at(creature.eyes)

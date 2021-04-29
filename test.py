@@ -1,15 +1,21 @@
 from manim import *
 
 from myPackage.myCreature.pencil import PencilCreature
-from myPackage.myCreature.pencil_animations import Blink, Appears, DisAppears
+from myPackage.myCreature.pencil_animations import Asks, Blink, Appears, DisAppears, BubbleIntroduction, RemoveBubble, Says, Thinks
+from myPackage.myCreature.bubble import Bubble
 
-class Pencil(Scene):
+class BubbleTeste(Scene):
     def construct(self):
-        al = PencilCreature()
-        self.wait()
-        self.play(Appears(al))
-        self.wait()
-        self.play(DisAppears(al))
 
+        al = PencilCreature(mode='confident')
+        al.move_to(3*DOWN+5*LEFT)
 
+        
+        self.play(
+            Says(al, "Yooo!")
+        )
+        self.wait()
+
+        self.play(RemoveBubble(al))
+        self.wait()
         

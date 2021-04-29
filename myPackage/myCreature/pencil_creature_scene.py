@@ -1,40 +1,45 @@
 import itertools as it
 import random
 
-from manimlib.animation.transform import ReplacementTransform
-from manimlib.animation.transform import Transform
-from manimlib.animation.transform import ApplyMethod
-from manimlib.animation.composition import LaggedStart
-from manimlib.constants import *
-from manimlib.for_3b1b_videos.pi_creature import Mortimer
-from manimlib.for_3b1b_videos.pi_creature import PiCreature
-from manimlib.for_3b1b_videos.pi_creature import Randolph
-from manimlib.for_3b1b_videos.pi_creature_animations import Blink
-from manimlib.for_3b1b_videos.pi_creature_animations import PiCreatureBubbleIntroduction
-from manimlib.for_3b1b_videos.pi_creature_animations import RemovePiCreatureBubble
-from manimlib.mobject.mobject import Group
-from manimlib.mobject.frame import ScreenRectangle
-from manimlib.mobject.svg.drawings import SpeechBubble
-from manimlib.mobject.svg.drawings import ThoughtBubble
-from manimlib.mobject.types.vectorized_mobject import VGroup
-from manimlib.scene.scene import Scene
-from manimlib.utils.rate_functions import squish_rate_func
-from manimlib.utils.rate_functions import there_and_back
-from manimlib.utils.space_ops import get_norm
-from manimlib.creature.pencil_creature import *
-from manimlib.creature.pencil_creature_animations import *
+from manim.constants import *
+from manim.utils.color import *
+from manim.animation.transform import ReplacementTransform
+from manim.animation.transform import Transform
+from manim.animation.transform import ApplyMethod
+from manim.animation.composition import LaggedStart
+from manim.mobject.mobject import Group
+from manim.mobject.frame import ScreenRectangle
+from manim.mobject.types.vectorized_mobject import VGroup
+from manim.scene.scene import Scene
+from manim.utils.rate_functions import squish_rate_func, there_and_back
+from manim.utils.space_ops import get_norm
+
+from .pencil import PencilCreature, Alex, Teacher
+from .bubble import Bubble
+from .pencil_animations import (
+    Blink, Appears, DisAppears, BubbleIntroduction, Says, Asks, Thinks, RemoveBubble
+)
 
 class CreatureScene(Scene):
     CONFIG = {
         "total_wait_time": 0,
         "seconds_to_blink": 3, 
-        "creatures_start_on_screen": True,
-        "default_creature_start_corner": DL,
-        "default_creature_kwargs": {
+    }
+
+    def __init__(
+        self, 
+        creatures_start_on_screen = True,
+        default_creature_start_corner = DL,
+        default_creature_kwargs= {
             "color": BLUE,
             "flip_at_start": False,
         },
-    }
+        **kwargs
+    ):
+        self.creatures_start_on_screen = creatures_start_on_screen
+        self.default_creature_start_corner = default_creature_start_corner
+        self.default_creature_kwargs = default_creature_kwargs
+
 
     def setup(self):
         self.creatures = VGroup(*self.create_creatures())
@@ -84,10 +89,10 @@ class CreatureScene(Scene):
             content = args
 
         keep_other_bubble = kwargs.pop("keep_other_bubble", False)
-        bubble_class = kwargs.pop("bubble_class", SpeechBubble)
+        bubble_class = kwargs.pop("bubble_mode", "speech")
         target_mode = kwargs.pop(
             "target_mode",
-            "think" if bubble_class is ThoughtBubble else "ask"
+            "think" if bubble_class is "thought" else "ask"
         )
         bubble_kwargs = kwargs.pop("bubble_kwargs", {})
         bubble_removal_kwargs = kwargs.pop("bubble_removal_kwargs", {})
@@ -292,7 +297,6 @@ class AlexScene(CreatureScene):
             creature.change, target_mode,
             *added_anims
         )
-
 
 class TeacherStudentsScene(CreatureScene):
     CONFIG = {
