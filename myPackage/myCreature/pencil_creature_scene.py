@@ -3,45 +3,49 @@ import random
 
 from manim.constants import *
 from manim.utils.color import *
-from manim.animation.transform import ReplacementTransform
-from manim.animation.transform import Transform
-from manim.animation.transform import ApplyMethod
+
 from manim.animation.composition import LaggedStart
-from manim.mobject.mobject import Group
+from manim.mobject.mobject import Group, Mobject
 from manim.mobject.frame import ScreenRectangle
 from manim.mobject.types.vectorized_mobject import VGroup
 from manim.scene.scene import Scene
 from manim.utils.rate_functions import squish_rate_func, there_and_back
 from manim.utils.space_ops import get_norm
-
-from .pencil import PencilCreature, Alex, Teacher
-from .bubble import Bubble
-from .pencil_animations import (
-    Blink, Appears, DisAppears, BubbleIntroduction, Says, Asks, Thinks, RemoveBubble
+from manim.animation.composition import AnimationGroup
+from manim.animation.fading import FadeInFrom
+from manim.animation.transform import (
+    ReplacementTransform, ApplyMethod, Transform, MoveToTarget, ApplyFunction
 )
 
-class CreatureScene(Scene):
-    CONFIG = {
-        "total_wait_time": 0,
-        "seconds_to_blink": 3, 
-    }
+from .pencil import PencilCreature, Alex
+# from .bubble import Bubble
+from .pencil_animations import (
+    Blink, Appears, DisAppears, BubbleIntroduction, RemoveBubble
+)
 
-    def __init__(
-        self, 
+
+SCALE_FACTOR = 1.6
+
+
+class CreatureScene(Scene):
+
+    def setup(
+        self,
         creatures_start_on_screen = True,
-        default_creature_start_corner = DL,
+        default_creature_start_corner = DR,
         default_creature_kwargs= {
-            "color": BLUE,
-            "flip_at_start": False,
+            "color": GREY_BROWN,
+            "flip_at_start": True,
         },
-        **kwargs
+        total_wait_time  = 0,
+        seconds_to_blink  = 3,
     ):
         self.creatures_start_on_screen = creatures_start_on_screen
         self.default_creature_start_corner = default_creature_start_corner
         self.default_creature_kwargs = default_creature_kwargs
+        self.total_wait_time = total_wait_time
+        self.seconds_to_blink = seconds_to_blink
 
-
-    def setup(self):
         self.creatures = VGroup(*self.create_creatures())
         self.creature = self.get_primary_creature()
         if self.creatures_start_on_screen:
@@ -54,7 +58,7 @@ class CreatureScene(Scene):
         return VGroup(self.create_creature())
 
     def create_creature(self):
-        creature = PencilCreature(**self.default_creature_kwargs)
+        creature = PencilCreature(**self.default_creature_kwargs).scale(SCALE_FACTOR)
         creature.to_corner(self.default_creature_start_corner)
         return creature
     
@@ -75,24 +79,21 @@ class CreatureScene(Scene):
         ])
 
     def has_bubble(self, pencil):
-        on_screen_mobjects = self.camera.extract_mobject_family_members(self.get_mobjects())
+        # on_screen_mobjects = self.camera.extract_mobject_family_members(self.get_mobjects())
+        on_screen_mobjects = self.get_mobject_family_members()
         return hasattr(pencil, "bubble") and \
             pencil.bubble is not None and \
             pencil.bubble in on_screen_mobjects
         
-    def introduce_bubble(self, *args, **kwargs):
-        if isinstance(args[0], PencilCreature):
-            creature = args[0]
-            content = args[1:]
-        else:
+    def introduce_bubble(self, content, creature=None, **kwargs):
+        if not creature:
             creature = self.get_primary_creature()
-            content = args
 
         keep_other_bubble = kwargs.pop("keep_other_bubble", False)
         bubble_class = kwargs.pop("bubble_mode", "speech")
         target_mode = kwargs.pop(
             "target_mode",
-            "think" if bubble_class is "thought" else "ask"
+            "think" if bubble_class == "thought" else "ask"
         )
         bubble_kwargs = kwargs.pop("bubble_kwargs", {})
         bubble_removal_kwargs = kwargs.pop("bubble_removal_kwargs", {})
@@ -112,8 +113,8 @@ class CreatureScene(Scene):
             creatures_with_bubbles.remove(creature)
             old_bubble = creature.bubble
             bubble = creature.get_bubble(
-                *content,
-                bubble_class=bubble_class,
+                content,
+                bubble_mode=bubble_class,
                 **bubble_kwargs
             )
             anims += [
@@ -124,8 +125,8 @@ class CreatureScene(Scene):
         else:
             anims.append(BubbleIntroduction(
                 creature,
-                *content,
-                bubble_class=bubble_class,
+                content,
+                bubble_mode=bubble_class,
                 bubble_kwargs=bubble_kwargs,
                 target_mode=target_mode,
                 **kwargs
@@ -134,33 +135,35 @@ class CreatureScene(Scene):
 
         self.play(*anims, **kwargs)
 
-    def creature_says(self, *args, **kwargs):
+    def creature_says(self, content, **kwargs):
         self.introduce_bubble(
-            *args,
-            bubble_class=SpeechBubble,
+            content,
+            bubble_mode="speech",
+            target_mode="confident",
             **kwargs
         )
     
-    def creature_thinks(self, *args, **kwargs):
+    def creature_thinks(self, content, **kwargs):
         self.introduce_bubble(
-            *args,
-            bubble_class=ThoughtBubble,
+            content,
+            bubble_mode="thought",
+            target_mode="think",
             **kwargs
         )
-    
-    def say(self, *content, **kwargs):
-        self.creature_says(self.get_primary_creature(), *content, **kwargs)
-    
-    def think(self, *content, **kwargs):
-        self.creature_thinks(self.get_primary_creature(), *content, **kwargs)     
 
-    def clear_bubble(self, creatures=None,  **kwargs):
+    def say(self, content, **kwargs):
+        self.creature_says(content, **kwargs)
+    
+    def think(self, content, **kwargs):
+        self.creature_thinks(content, **kwargs)
+
+    def clear_bubble(self, **kwargs):
         creatures_with_bubbles = list(filter(self.has_bubble, self.get_creatures()))
-        if creatures:
-            anims = [RemoveBubble(creature) for creature in creatures_with_bubbles]
-            self.play(*anims, **kwargs)
-        else :
-            anims = [RemoveBubble(pencil) for pencil in creatures_with_bubbles]
+        anims = []
+        for creature in creatures_with_bubbles:
+            anims.append(RemoveBubble(creature))
+            creature.bubble = None
+        if anims:
             self.play(*anims, **kwargs)
             
     def compile_play_args_to_animation_list(self, *args, **kwargs):
@@ -238,7 +241,7 @@ class CreatureScene(Scene):
         return self
     
     def change_mode(self, mode, run_time=0.5):
-        self.play(self.get_primary_creature().change_mode, mode, run_time=run_time)
+        self.play(self.get_primary_creature().animate.change_mode(mode), run_time=run_time)
 
     def look_at(self, thing_to_look_at, creatures=None, **kwargs):
         if creatures is None:
@@ -259,10 +262,14 @@ class CreatureScene(Scene):
             self.play(*[Appears(creature, **kwargs) for creature in creatures])  
 
     def disappears(self, creature=None, **kwargs):
+        anims = []
         if not creature:
             creature = self.creature
-            self.play(DisAppears(creature, **kwargs))
+        if creature.bubble:
+            anims = [RemoveBubble(creature)]
 
+        anims.append(DisAppears(creature, **kwargs))
+        self.play(LaggedStart(*anims, lag_ratio=0.5))
 
     def look_at_u(self, creature=None, **kwargs):
         if not creature:
@@ -271,15 +278,6 @@ class CreatureScene(Scene):
         creature.generate_target()
         creature.target.look_at_u()
         self.play(MoveToTarget(creature))
-
-class AlexScene(CreatureScene):
-    CONFIG = {
-        "default_creature_kwargs": {
-            "color": GREY_BROWN,
-            "flip_at_start": True,
-        },
-        "default_creature_start_corner": DR,
-    }
 
     def show(self, mobject, creature=None, target_mode="confident", added_anims=None, **kwargs):
         if not creature:
@@ -294,33 +292,36 @@ class AlexScene(CreatureScene):
         added_anims = added_anims or []
         self.play(
             ReplacementTransform(mobject_copy, mobject),
-            creature.change, target_mode,
+            creature.animate.change(target_mode),
             *added_anims
         )
 
-class TeacherStudentsScene(CreatureScene):
-    CONFIG = {
-        "student_colors": [SANDY_BROWN, PERSIAN_GREEN, ORANGE_YELLOW],
-        "teacher_color": GREY_BROWN,
-        "student_scale_factor": 0.8,
-        "seconds_to_blink": 2,
-        "screen_height": 3,
-    }
 
-    def setup(self):
+class TeacherStudentsScene(CreatureScene):
+
+    def setup(
+        self,
+        student_colors = [BLUE_D, BLUE_E, BLUE_D],
+        teacher_color = GREY_BROWN,
+        student_scale_factor = 0.8,
+        screen_height = 3,
+    ):
+        self.student_colors = student_colors
+        self.teacher_color = teacher_color
+        self.student_scale_factor = student_scale_factor
+        self.screen = ScreenRectangle(height=screen_height).set_fill(BLACK, opacity=1)
+        self.screen.to_corner(UL)
         CreatureScene.setup(self)
-        # self.screen = ScreenRectangle(height=self.screen_height).set_fill(BLACK, opacity=1)
-        # self.screen.to_corner(UL)
-        self.hold_up_spot = self.teacher.get_corner(UL) + MED_LARGE_BUFF * UP
     
     def create_creatures(self):
-        self.teacher = Alex(color=self.teacher_color)
+        self.teacher = Alex(color=self.teacher_color).scale(SCALE_FACTOR)
         self.teacher.to_corner(DR)
         self.students = VGroup(*[
-            Alex(color=c)
+            Alex(color=c).scale(SCALE_FACTOR)
             for c in self.student_colors
         ])
-        self.students.arrange(RIGHT)
+        self.students.arrange(RIGHT, buff=0.5)
+        # self.students.arrange(RIGHT)
         self.students.scale(self.student_scale_factor)
         self.students.to_corner(DL)
         self.teacher.look_at(self.students[-1].eyes)
@@ -335,23 +336,19 @@ class TeacherStudentsScene(CreatureScene):
     def get_students(self):
         return self.students
 
-    def teacher_says(self, *content, **kwargs):
-        return self.creature_says(self.get_teacher(), *content, **kwargs)
+    def teacher_says(self, content, **kwargs):
+        return self.creature_says(content, creature=self.get_teacher(), **kwargs)
 
-    def student_says(self, *content, **kwargs):
-        if "target_mode" not in kwargs:
-            kwargs["target_mode"] = "ask"
-        if "bubble_kwargs" not in kwargs:
-            kwargs["bubble_kwargs"] = {"direction": LEFT}
+    def student_says(self, content, **kwargs):
         student = self.get_students()[kwargs.get("student_index", -1)]
-        return self.creature_says(student, *content, **kwargs)
+        return self.creature_says(content, creature=student, **kwargs)
     
-    def teacher_thinks(self, *content, **kwargs):
-        return self.creature_thinks(self.get_teacher(), *content, **kwargs)
+    def teacher_thinks(self, content, **kwargs):
+        return self.creature_thinks(content, creature=self.get_teacher(), **kwargs)
     
-    def student_thinks(self, *content, **kwargs):
+    def student_thinks(self, content, **kwargs):
         student = self.get_students()[kwargs.get("student_index", -1)]
-        return self.creature_thinks(student, *content, **kwargs)
+        return self.creature_thinks(content, creature=student, **kwargs)
 
     def change_all_student_modes(self, mode, **kwargs):
         self.change_student_modes(*[mode] * len(self.students), **kwargs)
@@ -378,26 +375,9 @@ class TeacherStudentsScene(CreatureScene):
             run_time=1,
         )
 
-    def zoom_in_on_thought_bubble(self, bubble=None, radius=FRAME_Y_RADIUS + FRAME_X_RADIUS):
-            if bubble is None:
-                for pencil in self.get_creatures():
-                    if hasattr(pencil, "bubble") and isinstance(pencil.bubble, ThoughtBubble):
-                        bubble = pencil.bubble
-                        break
-                if bubble is None:
-                    raise Exception("There is no pencil creatures with a thought bubble")
-            vect = -bubble.get_bubble_center()
-
-            def func(point):
-                centered = point + vect
-                return 1.5* radius * centered / get_norm(centered)
-                
-            self.play(*[
-                ApplyPointwiseFunction(func, mob)
-                for mob in self.get_mobjects()
-            ])
 
     def teacher_holds_up(self, mobject, target_mode="ask", added_anims=None, **kwargs):
+        self.hold_up_spot = self.teacher.get_corner(UL) + MED_LARGE_BUFF * UP
         mobject.move_to(self.hold_up_spot, DOWN)
         mobject.shift_onto_screen()
         mobject_copy = mobject.copy()
@@ -406,7 +386,7 @@ class TeacherStudentsScene(CreatureScene):
         added_anims = added_anims or []
         self.play(
             ReplacementTransform(mobject_copy, mobject),
-            self.teacher.change, target_mode,
+            self.teacher.animate.change(target_mode),
             *added_anims
         )
 
@@ -415,9 +395,8 @@ class TeacherStudentsScene(CreatureScene):
         for creature in self.creatures:
             creature.generate_target()
             creature.target.look_at_u()
-            anims +=MoveToTarget(creature)
+            anims.append(MoveToTarget(creature))
         self.play(*anims)
-
 
 
     def zoom_out(self, board=Mobject()):

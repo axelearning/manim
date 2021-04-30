@@ -11,6 +11,7 @@ from manim.mobject.svg.svg_mobject import SVGMobject
 from manim.mobject.types.vectorized_mobject import VGroup
 from manim.mobject.mobject import *
 from manim.mobject.geometry import *
+from manim.utils.space_ops import get_norm
 # from manim.mobject.svg.tex_mobject import TextMobject
 
 from .bubble import Bubble
@@ -45,7 +46,7 @@ class PencilCreature(SVGMobject):
         self, 
         # File
         type = "pencil",
-        mode = "ask",
+        mode = "normal",
         # Style
         color=BLUE_E,
         background_color = "#e5d4c3",

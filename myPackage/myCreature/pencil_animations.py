@@ -1,20 +1,8 @@
-# from manimlib.animation.animation import Animation
-# from manimlib.animation.composition import AnimationGroup
-# from manimlib.animation.fading import FadeOut, FadeInFrom
-# from manimlib.animation.creation import Write
-# from manimlib.animation.transform import MoveToTarget, ApplyMethod
-# from manimlib.constants import *
-# from manimlib.mobject.mobject import Group
-# from manimlib.mobject.svg.drawings import SpeechBubble
-# from manimlib.utils.config_ops import digest_config
-# from manimlib.utils.rate_functions import there_and_back, exponential_decay, squish_rate_func
-# from manimlib.creature.pencil_creature import *
-
 from manim.utils.rate_functions import squish_rate_func, there_and_back, exponential_decay
 from manim.animation.transform import ApplyMethod, MoveToTarget
 from manim.animation.fading import FadeInFrom, FadeOutAndShift, FadeOut
 from manim.animation.composition import AnimationGroup
-from manim.animation.creation import Create, Uncreate, Write
+from manim.animation.creation import Uncreate, Write
 from manim.constants import *
 from manim.mobject.mobject import Group
 
@@ -124,12 +112,6 @@ class Thinks(BubbleIntroduction):
 
 
 class RemoveBubble(BubbleIntroduction):
-    CONFIG = {
-        "target_mode": "normal",
-        "look_at_arg": None,
-        "remover": True,
-        "run_time": 0.2
-    }
 
     def __init__(
         self, 
